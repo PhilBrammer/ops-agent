@@ -16,6 +16,7 @@ package main
 
 import (
 	"flag"
+	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
@@ -44,5 +45,27 @@ func run() error {
 	if err := confgenerator.MergeConfFiles(*input, confDebugFolder, "linux", apps.BuiltInConfStructs); err != nil {
 		return err
 	}
+	if err := logConfigFiles(filepath.Join(confDebugFolder, "built-in-config.yaml"), filepath.Join(confDebugFolder, "merged-config.yaml")); err != nil {
+		return err
+	}
 	return confgenerator.GenerateFiles(filepath.Join(confDebugFolder, "merged-config.yaml"), *service, *logsDir, *stateDir, *outDir)
+}
+
+// logConfigFiles logs the built-in and merged config files to STDOUT. These are then written by journald to var/log/syslog and so to
+// Cloud Logging once the ops-agent is running.
+func logConfigFiles(builtInConfigFile, mergedConfigFile string) error {
+	builtInConfig, err := ioutil.ReadFile(builtInConfigFile)
+	if err != nil {
+		return err
+	}
+
+	mergedConfig, err := ioutil.ReadFile(mergedConfigFile)
+	if err != nil {
+		return err
+	}
+
+	log.Printf("Built-in config:\n%s", builtInConfig)
+	log.Printf("Merged config:\n%s", mergedConfig)
+
+	return nil
 }

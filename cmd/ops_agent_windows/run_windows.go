@@ -116,11 +116,17 @@ func (s *service) generateConfigs() error {
 	if err := confgenerator.MergeConfFiles(s.userConf, confDebugFolder, "windows", apps.BuiltInConfStructs); err != nil {
 		return err
 	}
-	data, err := ioutil.ReadFile(filepath.Join(confDebugFolder, "merged-config.yaml"))
+	builtInConfig, err := ioutil.ReadFile(filepath.Join(confDebugFolder, "built-in-config.yaml"))
 	if err != nil {
 		return err
 	}
-	uc, err := confgenerator.ParseUnifiedConfigAndValidate(data, "windows")
+	mergedConfig, err := ioutil.ReadFile(filepath.Join(confDebugFolder, "merged-config.yaml"))
+	if err != nil {
+		return err
+	}
+	s.log.Info(1, fmt.Sprintf("Built-in config:\n%s", builtInConfig))
+	s.log.Info(1, fmt.Sprintf("Merged config:\n%s", mergedConfig))
+	uc, err := confgenerator.ParseUnifiedConfigAndValidate(mergedConfig, "windows")
 	if err != nil {
 		return err
 	}
