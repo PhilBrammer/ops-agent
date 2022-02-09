@@ -3,12 +3,12 @@ package main
 import (
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 
 	"github.com/GoogleCloudPlatform/ops-agent/apps"
 	"github.com/GoogleCloudPlatform/ops-agent/confgenerator"
+	yaml "github.com/goccy/go-yaml"
 	"golang.org/x/sys/windows/svc"
 	"golang.org/x/sys/windows/svc/debug"
 	"golang.org/x/sys/windows/svc/eventlog"
@@ -113,17 +113,17 @@ func (s *service) checkForStandaloneAgents(unified *confgenerator.UnifiedConfig)
 func (s *service) generateConfigs() error {
 	// TODO(lingshi) Move this to a shared place across Linux and Windows.
 	confDebugFolder := filepath.Join(os.Getenv("PROGRAMDATA"), dataDirectory, "run", "conf", "debug")
-	if err := confgenerator.MergeConfFiles(s.userConf, confDebugFolder, "windows", apps.BuiltInConfStructs); err != nil {
-		return err
+	builtInStruct := apps.BuiltInConfStructs["windows"]
+	builtInConfig, err := yaml.Marshal(builtInStruct)
+	if err != nil {
+		return fmt.Errorf("failed to convert the built-in config to yaml: %w \n", err)
 	}
-	builtInConfig, err := ioutil.ReadFile(filepath.Join(confDebugFolder, "built-in-config.yaml"))
+
+	mergedConfig, err := confgenerator.MergeConfFiles(s.userConf, confDebugFolder, "windows", apps.BuiltInConfStructs)
 	if err != nil {
 		return err
 	}
-	mergedConfig, err := ioutil.ReadFile(filepath.Join(confDebugFolder, "merged-config.yaml"))
-	if err != nil {
-		return err
-	}
+
 	s.log.Info(1, fmt.Sprintf("Built-in config:\n%s", builtInConfig))
 	s.log.Info(1, fmt.Sprintf("Merged config:\n%s", mergedConfig))
 	uc, err := confgenerator.ParseUnifiedConfigAndValidate(mergedConfig, "windows")

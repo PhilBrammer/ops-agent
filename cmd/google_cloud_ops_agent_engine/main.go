@@ -16,13 +16,15 @@ package main
 
 import (
 	"flag"
-	"io/ioutil"
+	"fmt"
 	"log"
 	"os"
 	"path/filepath"
 
 	"github.com/GoogleCloudPlatform/ops-agent/apps"
 	"github.com/GoogleCloudPlatform/ops-agent/confgenerator"
+	yaml "github.com/goccy/go-yaml"
+	"github.com/shirou/gopsutil/host"
 )
 
 var (
@@ -42,26 +44,30 @@ func main() {
 func run() error {
 	// TODO(lingshi) Move this to a shared place across Linux and Windows.
 	confDebugFolder := filepath.Join(os.Getenv("RUNTIME_DIRECTORY"), "conf", "debug")
-	if err := confgenerator.MergeConfFiles(*input, confDebugFolder, "linux", apps.BuiltInConfStructs); err != nil {
+	mergedConfig, err := confgenerator.MergeConfFiles(*input, confDebugFolder, "linux", apps.BuiltInConfStructs)
+	if err != nil {
 		return err
 	}
-	if err := logConfigFiles(filepath.Join(confDebugFolder, "built-in-config.yaml"), filepath.Join(confDebugFolder, "merged-config.yaml")); err != nil {
+
+	if err := logConfig(mergedConfig); err != nil {
 		return err
 	}
-	return confgenerator.GenerateFiles(filepath.Join(confDebugFolder, "merged-config.yaml"), *service, *logsDir, *stateDir, *outDir)
+
+	hostInfo, _ := host.Info()
+	uc, err := confgenerator.ParseUnifiedConfigAndValidate(mergedConfig, hostInfo.OS)
+	if err != nil {
+		return err
+	}
+	return confgenerator.GenerateFilesFromConfig(&uc, *service, *logsDir, *stateDir, *outDir)
 }
 
-// logConfigFiles logs the built-in and merged config files to STDOUT. These are then written by journald to var/log/syslog and so to
+// logConfig logs the built-in and merged config files to STDOUT. These are then written by journald to var/log/syslog and so to
 // Cloud Logging once the ops-agent is running.
-func logConfigFiles(builtInConfigFile, mergedConfigFile string) error {
-	builtInConfig, err := ioutil.ReadFile(builtInConfigFile)
+func logConfig(mergedConfig []byte) error {
+	builtInStruct := apps.BuiltInConfStructs["linux"]
+	builtInConfig, err := yaml.Marshal(builtInStruct)
 	if err != nil {
-		return err
-	}
-
-	mergedConfig, err := ioutil.ReadFile(mergedConfigFile)
-	if err != nil {
-		return err
+		return fmt.Errorf("failed to convert the built-in config to yaml: %w \n", err)
 	}
 
 	log.Printf("Built-in config:\n%s", builtInConfig)
