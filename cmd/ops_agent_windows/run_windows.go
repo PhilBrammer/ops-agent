@@ -8,7 +8,6 @@ import (
 
 	"github.com/GoogleCloudPlatform/ops-agent/apps"
 	"github.com/GoogleCloudPlatform/ops-agent/confgenerator"
-	yaml "github.com/goccy/go-yaml"
 	"golang.org/x/sys/windows/svc"
 	"golang.org/x/sys/windows/svc/debug"
 	"golang.org/x/sys/windows/svc/eventlog"
@@ -113,13 +112,8 @@ func (s *service) checkForStandaloneAgents(unified *confgenerator.UnifiedConfig)
 func (s *service) generateConfigs() error {
 	// TODO(lingshi) Move this to a shared place across Linux and Windows.
 	confDebugFolder := filepath.Join(os.Getenv("PROGRAMDATA"), dataDirectory, "run", "conf", "debug")
-	builtInStruct := apps.BuiltInConfStructs["windows"]
-	builtInConfig, err := yaml.Marshal(builtInStruct)
-	if err != nil {
-		return fmt.Errorf("failed to convert the built-in config to yaml: %w \n", err)
-	}
 
-	mergedConfig, err := confgenerator.MergeConfFiles(s.userConf, confDebugFolder, "windows", apps.BuiltInConfStructs)
+	builtInConfig, mergedConfig, err := confgenerator.MergeConfFiles(s.userConf, confDebugFolder, "windows", apps.BuiltInConfStructs)
 	if err != nil {
 		return err
 	}

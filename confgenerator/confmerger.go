@@ -25,7 +25,7 @@ import (
 
 // MergeConfFiles merges the user provided config with the built-in config struct for the platform.
 // It will write the merged config file to disk and return the config bytes.
-func MergeConfFiles(userConfPath, confDebugFolder, platform string, builtInConfStructs map[string]*UnifiedConfig) ([]byte, error) {
+func MergeConfFiles(userConfPath, confDebugFolder, platform string, builtInConfStructs map[string]*UnifiedConfig) ([]byte, []byte, error) {
 	builtInConfPath := filepath.Join(confDebugFolder, "built-in-config.yaml")
 	mergedConfPath := filepath.Join(confDebugFolder, "merged-config.yaml")
 
@@ -33,27 +33,27 @@ func MergeConfFiles(userConfPath, confDebugFolder, platform string, builtInConfS
 	builtInStruct := builtInConfStructs[platform]
 	builtInYaml, err := yaml.Marshal(builtInStruct)
 	if err != nil {
-		return nil, fmt.Errorf("failed to convert the built-in config %q to yaml: %w \n", builtInConfPath, err)
+		return nil, nil, fmt.Errorf("failed to convert the built-in config %q to yaml: %w \n", builtInConfPath, err)
 	}
 
 	if err := writeConfigFile(builtInYaml, builtInConfPath); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	mergedConf, err := mergeConfFiles(builtInConfPath, userConfPath, mergedConfPath, platform, builtInConfStructs)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	mergedConfigYaml, err := yaml.Marshal(mergedConf)
 	if err != nil {
-		return nil, fmt.Errorf("failed to convert the merged config %q to yaml: %w \n", mergedConfPath, err)
+		return nil, nil, fmt.Errorf("failed to convert the merged config %q to yaml: %w \n", mergedConfPath, err)
 	}
 	if err := writeConfigFile(mergedConfigYaml, mergedConfPath); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	return mergedConfigYaml, nil
+	return builtInYaml, mergedConfigYaml, nil
 }
 
 func mergeConfFiles(builtInConfPath, userConfPath, mergedConfPath, platform string, builtInConfStructs map[string]*UnifiedConfig) (*UnifiedConfig, error) {

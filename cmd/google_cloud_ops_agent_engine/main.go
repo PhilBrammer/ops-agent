@@ -16,14 +16,12 @@ package main
 
 import (
 	"flag"
-	"fmt"
 	"log"
 	"os"
 	"path/filepath"
 
 	"github.com/GoogleCloudPlatform/ops-agent/apps"
 	"github.com/GoogleCloudPlatform/ops-agent/confgenerator"
-	yaml "github.com/goccy/go-yaml"
 	"github.com/shirou/gopsutil/host"
 )
 
@@ -44,14 +42,16 @@ func main() {
 func run() error {
 	// TODO(lingshi) Move this to a shared place across Linux and Windows.
 	confDebugFolder := filepath.Join(os.Getenv("RUNTIME_DIRECTORY"), "conf", "debug")
-	mergedConfig, err := confgenerator.MergeConfFiles(*input, confDebugFolder, "linux", apps.BuiltInConfStructs)
+	builtInConfig, mergedConfig, err := confgenerator.MergeConfFiles(*input, confDebugFolder, "linux", apps.BuiltInConfStructs)
 	if err != nil {
 		return err
 	}
 
-	if err := logConfig(mergedConfig); err != nil {
-		return err
-	}
+	// Log the built-in and merged config files to STDOUT. These are then written
+	// by journald to var/log/syslog and so to Cloud Logging once the ops-agent is
+	// running.
+	log.Printf("Built-in config:\n%s", builtInConfig)
+	log.Printf("Merged config:\n%s", mergedConfig)
 
 	hostInfo, _ := host.Info()
 	uc, err := confgenerator.ParseUnifiedConfigAndValidate(mergedConfig, hostInfo.OS)
@@ -59,19 +59,4 @@ func run() error {
 		return err
 	}
 	return confgenerator.GenerateFilesFromConfig(&uc, *service, *logsDir, *stateDir, *outDir)
-}
-
-// logConfig logs the built-in and merged config files to STDOUT. These are then written by journald to var/log/syslog and so to
-// Cloud Logging once the ops-agent is running.
-func logConfig(mergedConfig []byte) error {
-	builtInStruct := apps.BuiltInConfStructs["linux"]
-	builtInConfig, err := yaml.Marshal(builtInStruct)
-	if err != nil {
-		return fmt.Errorf("failed to convert the built-in config to yaml: %w \n", err)
-	}
-
-	log.Printf("Built-in config:\n%s", builtInConfig)
-	log.Printf("Merged config:\n%s", mergedConfig)
-
-	return nil
 }
