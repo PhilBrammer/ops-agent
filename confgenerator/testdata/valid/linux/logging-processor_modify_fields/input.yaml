@@ -1,0 +1,24 @@
+logging:
+  receivers:
+    sample_logs:
+      type: files
+      include_paths: [/tmp/*.log]
+  processors:
+    simple:
+      type: modify_fields
+      fields:
+        jsonPayload.hello:
+          static_value: world
+        jsonPayload.copied:
+          copy_from: jsonPayload.source
+        jsonPayload.integer:
+          copy_from: jsonPayload.integer
+          type: integer
+  service:
+    pipelines:
+      p1:
+        receivers: [sample_logs]
+        processors:
+        - simple
+        exporters: [google]
+      
